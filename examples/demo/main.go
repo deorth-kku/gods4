@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kpeu3i/gods4"
-	"github.com/kpeu3i/gods4/led"
-	"github.com/kpeu3i/gods4/rumble"
+	"github.com/deorth-kku/gods4"
+	"github.com/deorth-kku/gods4/led"
+	"github.com/deorth-kku/gods4/rumble"
 )
 
 func main() {

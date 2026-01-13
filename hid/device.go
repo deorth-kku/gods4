@@ -1,8 +1,9 @@
 package hid
 
 import (
-	"github.com/pkg/errors"
-	"github.com/stamp/hid"
+	"fmt"
+
+	"github.com/karalabe/hid"
 )
 
 var (
@@ -12,7 +13,7 @@ var (
 
 type Device struct {
 	hidDeviceInfo *hid.DeviceInfo
-	hidDevice     *hid.Device
+	hidDevice     hid.Device
 }
 
 func (d *Device) VendorID() uint16 {
@@ -78,7 +79,7 @@ func (d *Device) GetFeatureReport(code byte) ([]byte, error) {
 			return nil, err
 		}
 	default:
-		return nil, errors.Errorf("hid: unsupported report code: %v", code)
+		return nil, fmt.Errorf("hid: unsupported report code: %v", code)
 	}
 
 	return bytes, nil
@@ -89,7 +90,11 @@ func Find() []*Device {
 
 	for _, vendorID := range vendorIDs {
 		for _, productID := range productIDs {
-			for _, info := range hid.Enumerate(vendorID, productID) {
+			devs, err := hid.Enumerate(vendorID, productID)
+			if err != nil {
+				continue // [hid.Enumerate] never returns an error
+			}
+			for _, info := range devs {
 				devices = append(devices, &Device{hidDeviceInfo: &info})
 			}
 		}

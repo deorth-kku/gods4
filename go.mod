@@ -1,6 +1,5 @@
-module github.com/kpeu3i/gods4
+module github.com/deorth-kku/gods4
 
-require (
-	github.com/pkg/errors v0.8.0
-	github.com/stamp/hid v0.0.0-20190105143849-bc55d7d13ce1
-)
+go 1.19
+
+require github.com/karalabe/hid v1.0.1-0.20240919124526-821c38d2678e

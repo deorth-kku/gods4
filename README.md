@@ -20,12 +20,12 @@ Works for Bluetooth and USB connections.
 
 Use go get to install the latest version of the library:
 
-    go get github.com/kpeu3i/gods4@v1.0.0
+    go get github.com/deorth-kku/gods4@master
 
 Next, include ds4 in your application:
 
 ```go
-import "github.com/kpeu3i/gods4"
+import "github.com/deorth-kku/gods4"
 ```
 
 ## Usage
@@ -41,9 +41,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/kpeu3i/gods4"
-	"github.com/kpeu3i/gods4/led"
-	"github.com/kpeu3i/gods4/rumble"
+	"github.com/deorth-kku/gods4"
+	"github.com/deorth-kku/gods4/led"
+	"github.com/deorth-kku/gods4/rumble"
 )
 
 func main() {
