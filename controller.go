@@ -1,6 +1,7 @@
 package gods4
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"hash/crc32"
@@ -47,20 +48,17 @@ type Controller struct {
 	inputPrevState *state
 	outputOffset   uint
 	outputState    []byte
-	isListening    bool
 	errors         chan error
-	quit           chan struct{}
+	quit           context.CancelFunc
 }
 
-type Callback func(data interface{}) error
+type Callback func(data any) error
 
 func NewController(device Device) *Controller {
 	return &Controller{
 		device:         device,
 		connectionType: ConnectionTypeNone,
 		emitter:        newEmitter(),
-		errors:         make(chan error),
-		quit:           make(chan struct{}),
 	}
 }
 
@@ -72,6 +70,7 @@ func (c *Controller) Connect() error {
 	if err != nil {
 		return err
 	}
+	c.errors = make(chan error, 1)
 
 	err = c.device.Open()
 	if err != nil {
@@ -121,7 +120,9 @@ func (c *Controller) Disconnect() error {
 		return err
 	}
 
-	c.quit <- struct{}{}
+	if c.quit != nil {
+		c.quit()
+	}
 
 	err = c.device.Close()
 	if err != nil {
@@ -130,7 +131,7 @@ func (c *Controller) Disconnect() error {
 
 	c.connectionType = ConnectionTypeNone
 
-	c.errors <- nil
+	close(c.errors)
 
 	return nil
 }
@@ -142,7 +143,7 @@ func (c *Controller) ConnectionType() ConnectionType {
 	return c.connectionType
 }
 
-func (c *Controller) Listen() error {
+func (c *Controller) ListenContext(ctx context.Context) error {
 	c.mutex.Lock()
 
 	err := c.errorIfNotConnected()
@@ -155,16 +156,25 @@ func (c *Controller) Listen() error {
 		return err
 	}
 
-	c.isListening = true
+	ctx, c.quit = context.WithCancel(ctx)
 	defer func() {
-		c.isListening = false
+		c.quit = nil
 	}()
 
-	go c.handle()
+	go c.handle(ctx)
 
 	c.mutex.Unlock()
 
-	return <-c.errors
+	select {
+	case err := <-c.errors:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (c *Controller) Listen() error {
+	return c.ListenContext(context.Background())
 }
 
 func (c *Controller) On(event Event, fn Callback) {
@@ -210,7 +220,7 @@ func (c *Controller) Led(led *led.Led) error {
 	return c.set(patch)
 }
 
-func (c *Controller) handle() {
+func (c *Controller) handle(ctx context.Context) {
 	bytes := make([]byte, 64)
 	bytes[0+c.inputOffset] = 1
 	bytes[1+c.inputOffset] = 128
@@ -223,7 +233,7 @@ func (c *Controller) handle() {
 
 	for {
 		select {
-		case <-c.quit:
+		case <-ctx.Done():
 			return
 		default:
 			_, err := c.device.Read(bytes)
@@ -315,7 +325,7 @@ func (c *Controller) errorIfNotConnected() error {
 }
 
 func (c *Controller) errorIfListening() error {
-	if c.isListening {
+	if c.quit != nil {
 		return ErrControllerIsListening
 	}
 
