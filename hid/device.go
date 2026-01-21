@@ -63,6 +63,10 @@ func (d *Device) Read(b []byte) (int, error) {
 	return d.hidDevice.Read(b)
 }
 
+func (d *Device) ReadTimeout(b []byte, timeout int) (int, error) {
+	return d.hidDevice.ReadTimeout(b, timeout)
+}
+
 func (d *Device) Write(b []byte) (int, error) {
 	return d.hidDevice.Write(b)
 }

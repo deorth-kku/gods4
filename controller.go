@@ -35,6 +35,7 @@ type Device interface {
 	Open() error
 	Close() error
 	Read(b []byte) (int, error)
+	ReadTimeout(b []byte, timeout int) (int, error)
 	Write(b []byte) (int, error)
 	GetFeatureReport(code byte) ([]byte, error)
 }
@@ -228,7 +229,7 @@ func (c *Controller) handle(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			_, err := c.device.Read(bytes)
+			_, err := c.device.ReadTimeout(bytes, readTimeout)
 			if err != nil {
 				c.quit(err)
 				return

@@ -21,12 +21,14 @@ func (t ConnectionType) String() string {
 	}
 }
 
+const readTimeout = 1000 // ms
+
 func detectConnectionType(device Device) (ConnectionType, error) {
 	_, _ = device.GetFeatureReport(getFeatureReportCode0x04)
 
 	bytes := make([]byte, 2)
 	for i := 1; i <= 100; i++ {
-		_, err := device.Read(bytes)
+		_, err := device.ReadTimeout(bytes, readTimeout)
 		if err != nil {
 			return 0, ErrInvalidConnectionType
 		}
