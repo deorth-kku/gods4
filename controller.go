@@ -19,6 +19,7 @@ var (
 	ErrControllerIsConnected    = errors.New("ds4: controller is already connected")
 	ErrControllerIsNotConnected = errors.New("ds4: controller is not connected")
 	ErrControllerIsListening    = errors.New("ds4: controller is already listening for events")
+	ErrDisconnecting            = errors.New("ds4: controller is disconnecting")
 )
 
 const getFeatureReportCode0x04 = 0x04
@@ -48,8 +49,7 @@ type Controller struct {
 	inputPrevState *state
 	outputOffset   uint
 	outputState    []byte
-	errors         chan error
-	quit           context.CancelFunc
+	quit           context.CancelCauseFunc
 }
 
 type Callback func(data any) error
@@ -70,7 +70,6 @@ func (c *Controller) Connect() error {
 	if err != nil {
 		return err
 	}
-	c.errors = make(chan error, 1)
 
 	err = c.device.Open()
 	if err != nil {
@@ -121,7 +120,7 @@ func (c *Controller) Disconnect() error {
 	}
 
 	if c.quit != nil {
-		c.quit()
+		c.quit(ErrDisconnecting)
 	}
 
 	err = c.device.Close()
@@ -130,9 +129,6 @@ func (c *Controller) Disconnect() error {
 	}
 
 	c.connectionType = ConnectionTypeNone
-
-	close(c.errors)
-
 	return nil
 }
 
@@ -156,7 +152,7 @@ func (c *Controller) ListenContext(ctx context.Context) error {
 		return err
 	}
 
-	ctx, c.quit = context.WithCancel(ctx)
+	ctx, c.quit = context.WithCancelCause(ctx)
 	defer func() {
 		c.quit = nil
 	}()
@@ -165,12 +161,8 @@ func (c *Controller) ListenContext(ctx context.Context) error {
 
 	c.mutex.Unlock()
 
-	select {
-	case err := <-c.errors:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	<-ctx.Done()
+	return context.Cause(ctx)
 }
 
 func (c *Controller) Listen() error {
@@ -238,8 +230,7 @@ func (c *Controller) handle(ctx context.Context) {
 		default:
 			_, err := c.device.Read(bytes)
 			if err != nil {
-				c.errors <- err
-
+				c.quit(err)
 				return
 			}
 
@@ -247,8 +238,7 @@ func (c *Controller) handle(ctx context.Context) {
 
 			err = c.emitter.emit(c.inputCurrState, c.inputPrevState)
 			if err != nil {
-				c.errors <- err
-
+				c.quit(err)
 				return
 			}
 

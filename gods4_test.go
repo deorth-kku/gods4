@@ -28,12 +28,18 @@ func TestListen(t *testing.T) {
 		return err
 	})
 
-	go controller.Listen()
+	go func() {
+		err := controller.Listen()
+		if err != ErrDisconnecting {
+			t.Error(err)
+		}
+	}()
 	time.Sleep(time.Second)
 	err = controller.Disconnect()
 	if err != nil {
 		t.Fatal(err)
 	}
+	time.Sleep(time.Second)
 }
 
 func TestListenContext(t *testing.T) {
